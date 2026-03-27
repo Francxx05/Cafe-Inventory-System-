@@ -1,4 +1,4 @@
-HOW TO ACCESS CAFE INVENTORY SYSTEM USING MONGODB SHELL
+HOW TO ACCESS CAFE INVENTORY SYSTEM USING MONGODB COMPASS
 => Open your web browser and go to: https://www.mongodb.com/try/download/terraform-provider
 => download latest version 
 => click "Add new connection" 
