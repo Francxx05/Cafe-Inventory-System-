@@ -1,4 +1,4 @@
-const { getDB } = require("./db")//lahat ng functionalities 
+const { getDB } = require("./db")//lahat ng functionalities
 
 class CafeInventory {
 
@@ -113,8 +113,31 @@ class CafeInventory {
         return true
     }
 
+async updateSpoilage(){//new added 
+    const db = getDB()
+   const now = new Date()
+    const todayStr = now.getFullYear() + "-" +
+        String(now.getMonth() + 1).padStart(2, "0") + "-" +
+        String(now.getDate()).padStart(2, "0")
+
+    const batches = await db.collection("batches").find().toArray()
+
+    for(let b of batches){
+        if(b.spoilageDate <= todayStr && b.quantity > 0){
+            await db.collection("batches").updateOne(
+                { _id: b._id },
+                {
+                    $inc: { totalSpoiled: b.quantity },
+                    $set: { quantity: 0 }
+                }
+            )
+        }
+    }
+}
     async showInventory(){//show inventory 
         const db = getDB()
+
+        await this.updateSpoilage()//Calling update spoilage 
         const items = await db.collection("items").find().sort({ id: 1 }).toArray()
 
         if(items.length === 0){
@@ -140,22 +163,28 @@ class CafeInventory {
             batches.forEach((b, index) => {
                 const spoilDate = new Date(b.spoilageDate)
                 const diffDays  = Math.ceil((spoilDate - today) / (1000 * 60 * 60 * 24))
-
+                const now = new Date()
+                const todayStr = now.getFullYear() + "-" +
+                    String(now.getMonth() + 1).padStart(2, "0") + "-" +
+                    String(now.getDate()).padStart(2, "0")
                 let status = ""
-                if(b.quantity === 0)       status = "❌ Spoiled"
-                else if(diffDays <= 2)     status = "⚠️ Near Exp"
-                else                       status = "✅ Fresh"
+                if(b.spoilageDate <= todayStr)   status = "❌ Spoiled"
+                else if(diffDays <= 2)           status = "⚠️ Near Exp"
+                else                             status = "✅ Fresh"
+
+                    const displayQty     = b.quantity
+                    const displaySpoiled = b.totalSpoiled//new added
 
                 const batch    = String(b.batchId).padEnd(5)
-                const qty      = String(b.quantity).padEnd(8)
+                const qty      = String(displayQty).padEnd(8)
                 const spoilStr = b.spoilageDate.padEnd(14)
-                const spoiled  = String(b.totalSpoiled).padEnd(8)
+                const spoiled  = String(displaySpoiled).padEnd(8)
 
                 console.log(`  | ${batch} | ${qty} | ${spoilStr} | ${spoiled} | ${status}`)
 
-                totalQty     += b.quantity
-                totalSpoiled += b.totalSpoiled
-                if(index > 0) totalRestock += b.quantity + b.totalSpoiled
+                totalQty     += displayQty
+                totalSpoiled += displaySpoiled
+                totalRestock += b.quantity//new debug 
             })
 
             console.log("  └──────────────────────────────────────────────────────────────┘")
@@ -164,6 +193,7 @@ class CafeInventory {
     }
 
     async computeTotals(){
+        const today = new Date()
         const db = getDB()
         const items = await db.collection("items").find().sort({ id: 1 }).toArray()
 
@@ -192,11 +222,19 @@ class CafeInventory {
             let totalSpoiled = 0
 
             batches.forEach((b, index) => {
-                totalQty     += b.quantity
-                totalSpoiled += b.totalSpoiled
-                if(index > 0) totalRestock += b.quantity + b.totalSpoiled
-            })
+               const now = new Date()
+            const todayStr = now.getFullYear() + "-" +
+                String(now.getMonth() + 1).padStart(2, "0") + "-" +
+                String(now.getDate()).padStart(2, "0")
+                const isSpoiled = b.spoilageDate <= todayStr
 
+                const displayQty     = b.quantity
+                const displaySpoiled = b.totalSpoiled || 0
+
+                totalQty     += displayQty
+                totalSpoiled += displaySpoiled
+                totalRestock += b.quantity//new debug 
+            })
             const id      = String(i.id).padEnd(2)
             const name    = i.name.padEnd(18)
             const qty     = String(totalQty).padEnd(12)
@@ -217,9 +255,10 @@ class CafeInventory {
         console.log("\n📦 Total Inventory  :", grandQty,     "units")
         console.log("🔄 Total Restocked  :", grandRestock,  "units")
         console.log("🗑️  Total Spoiled    :", grandSpoiled,  "units")
+        const total = grandQty + grandSpoiled
 
-        const spoilageRate = grandRestock > 0
-            ? ((grandSpoiled / grandRestock) * 100).toFixed(2)
+        const spoilageRate = total > 0
+            ? ((grandSpoiled / total) * 100).toFixed(2)
             : "0.00"
 
         console.log("📊 Spoilage Rate    :", spoilageRate + "%")

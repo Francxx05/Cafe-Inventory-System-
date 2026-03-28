@@ -18,26 +18,29 @@ function startSpoilageMonitor(){
             monitor = null
             return
         }
+    const today = new Date()
+           const now = new Date()
+const todayStr = now.getFullYear() + "-" +
+    String(now.getMonth() + 1).padStart(2, "0") + "-" +
+    String(now.getDate()).padStart(2, "0")
+            let active = false
+            let newlySpoiled = []
 
-        const today = new Date()
-        let active = false
-        let newlySpoiled = []
-
-        for(let b of batches){
+            for(let b of batches){
 
             if(b.quantity > 0) active = true
 
-            if(new Date(b.spoilageDate) <= today && b.quantity > 0){
+            if(b.spoilageDate <= todayStr && b.quantity > 0){
 
                 const batchKey = `${b.itemId}-batch${b.batchId}`
 
-                await db.collection("batches").updateOne(
-                    { itemId: b.itemId, batchId: b.batchId },
-                    {
-                        $inc: { totalSpoiled: b.quantity },
-                        $set: { quantity: 0 }
-                    }
-                )
+            await db.collection("batches").updateOne(
+                { _id: b._id }, // ✅ FIXED
+                {
+                    $inc: { totalSpoiled: b.quantity },
+                    $set: { quantity: 0 }
+                }
+            )
 
                 if(!spoiledAlreadyReported.has(batchKey)){
                     const item = await db.collection("items").findOne({ id: b.itemId })
@@ -81,13 +84,17 @@ async function checkInventoryParallel(){
         const batches = await db.collection("batches")
             .find({ itemId: i.id }).sort({ batchId: 1 }).toArray()
 
-        for(let b of batches){
-            const diffDays = Math.ceil((new Date(b.spoilageDate) - today) / (1000 * 60 * 60 * 24))
-            if(b.quantity === 0){
-                spoiledList.push(`${i.name} Batch ${b.batchId}`)
-            } else if(diffDays <= 2){
-                nearExpList.push(`${i.name} Batch ${b.batchId}`)
-            }
+const now = new Date()
+const todayStr = now.getFullYear() + "-" +
+    String(now.getMonth() + 1).padStart(2, "0") + "-" +
+    String(now.getDate()).padStart(2, "0")
+            for(let b of batches){
+                const diffDays = Math.ceil((new Date(b.spoilageDate) - today) / (1000 * 60 * 60 * 24))
+                if(b.spoilageDate <= todayStr){
+                    spoiledList.push(`${i.name} Batch ${b.batchId}`)
+                } else if(diffDays <= 2){
+                    nearExpList.push(`${i.name} Batch ${b.batchId}`)
+                }
         }
     }
 
@@ -107,11 +114,15 @@ async function checkInventoryParallel(){
         batches.forEach(b => {
             const spoilDate = new Date(b.spoilageDate)
             const diffDays  = Math.ceil((spoilDate - today) / (1000 * 60 * 60 * 24))
-
-            let status = ""
-            if(b.quantity === 0)     status = "Spoiled"
-            else if(diffDays <= 2)   status = "Near Exp"
-            else                     status = "Fresh"
+            
+    const now = new Date()
+const todayStr = now.getFullYear() + "-" +
+    String(now.getMonth() + 1).padStart(2, "0") + "-" +
+    String(now.getDate()).padStart(2, "0")
+                let status = ""
+                if(b.spoilageDate <= todayStr)   status = "Spoiled"
+                else if(diffDays <= 2)           status = "Near Exp"
+                else                             status = "Fresh"
 
             const id       = String(i.id).padEnd(2)
             const name     = i.name.padEnd(18)

@@ -39,7 +39,7 @@ async function menu(){
                     rl.question("Add quantity (or 6 to cancel): ", async quantity => {
                         if(quantity === "6") return menu()
 
-                        rl.question("Spoilage date YYYY-MM-DD (or 6 to cancel): ", async spoilageDate => {
+                        rl.question("Spoilage date YYYY-MM-DD (or 6 to cancel): ", async (spoilageDate) => {
                             if(spoilageDate === "6") return menu()
 
                             const success = await cafe.addItem(Number(id), name, Number(quantity), spoilageDate)
@@ -61,7 +61,7 @@ async function menu(){
                 rl.question("Restock quantity (or 6 to cancel): ", async quantity => {
                     if(quantity === "6") return menu()
 
-                    rl.question("Spoilage date YYYY-MM-DD (or 6 to cancel): ", async spoilageDate => {
+                    rl.question("Spoilage date YYYY-MM-DD (or 6 to cancel): ", async (spoilageDate) => {
                         if(spoilageDate === "6") return menu()
 
                         const success = await cafe.restockItem(Number(id), Number(quantity), spoilageDate)
@@ -145,6 +145,7 @@ async function menu(){
 
 async function start(){
     await connectDB()
+    startSpoilageMonitor()
     menu()
 }
 
